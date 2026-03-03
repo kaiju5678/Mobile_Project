@@ -3,50 +3,71 @@ package com.example.mobile_project
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.mobile_project.ui.theme.Mobile_ProjectTheme
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.mobile_project.login.LoginScreen
+import com.example.mobile_project.register.RegisterScreen
+
+// --- 1. สร้าง Enum สำหรับหน้าจอ ---
+enum class Screen {
+    Welcome, Login, Register
+}
+
+// --- 2. สร้าง ViewModel สำหรับจัดการ Navigation ---
+class NavigationViewModel : ViewModel() {
+    var currentScreen by mutableStateOf(Screen.Welcome)
+        private set
+
+    fun navigateTo(screen: Screen) {
+        currentScreen = screen
+    }
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            WelcomeScreen()
+            // เรียกใช้งาน ViewModel
+            val navigationViewModel: NavigationViewModel = viewModel()
+
+            // ตรวจสอบ State จาก ViewModel เพื่อแสดงหน้าจอ
+            when (navigationViewModel.currentScreen) {
+                Screen.Welcome -> WelcomeScreen(
+                    onLoginClick = { navigationViewModel.navigateTo(Screen.Login) },
+                    onRegisterClick = { navigationViewModel.navigateTo(Screen.Register) }
+                )
+                Screen.Login -> LoginScreen(
+                    onNavigateToRegister = { navigationViewModel.navigateTo(Screen.Register) }
+                )
+                Screen.Register -> RegisterScreen(
+                    onNavigateToLogin = { navigationViewModel.navigateTo(Screen.Login) }
+                )
+            }
         }
     }
 }
 
-
 // กำหนดสีตามภาพ Design
-val TopBackgroundColor = Color(0xFFF7F8FA) // สีขาวอมเทาพื้นหลังด้านบน
-val PrimaryDarkBlue = Color(0xFF0D3D82) // สีน้ำเงินเข้ม (ปุ่ม Login, ข้อความ)
-val BottomPanelBlue = Color(0xFF2FA2E9) // สีฟ้าอ่อน (พื้นหลังด้านล่าง)
+val TopBackgroundColor = Color(0xFFF7F8FA)
+val PrimaryDarkBlue = Color(0xFF0D3D82)
+val BottomPanelBlue = Color(0xFF2FA2E9)
 
 @Composable
-fun WelcomeScreen() {
+fun WelcomeScreen(onLoginClick: () -> Unit, onRegisterClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -56,7 +77,6 @@ fun WelcomeScreen() {
         // --- ส่วนบน (โลโก้ และ ข้อความ) ---
         Spacer(modifier = Modifier.height(80.dp))
 
-        // ใส่รูปโลโก้ของคุณตรงนี้ (เปลี่ยน R.drawable.hitcar_logo เป็นชื่อไฟล์ของคุณ)
         Image(
             painter = painterResource(id = R.drawable.hitcar_template),
             contentDescription = "HitCar Logo",
@@ -76,14 +96,13 @@ fun WelcomeScreen() {
             lineHeight = 38.sp
         )
 
-        // ดันเนื้อหาส่วนล่างให้ไปติดขอบล่าง
         Spacer(modifier = Modifier.weight(1f))
 
         // --- ส่วนล่าง (กล่องสีฟ้าและปุ่มกด) ---
         Surface(
             modifier = Modifier.fillMaxWidth(),
             color = BottomPanelBlue,
-            shape = RoundedCornerShape(topStart = 48.dp, topEnd = 48.dp) // ขอบมนด้านบน
+            shape = RoundedCornerShape(topStart = 48.dp, topEnd = 48.dp)
         ) {
             Column(
                 modifier = Modifier
@@ -112,12 +131,12 @@ fun WelcomeScreen() {
 
                 // ปุ่ม Login
                 Button(
-                    onClick = { /* TODO: ใส่ Action เมื่อกด Login */ },
+                    onClick = { onLoginClick() },
                     modifier = Modifier
                         .fillMaxWidth(0.85f)
                         .height(56.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryDarkBlue),
-                    shape = RoundedCornerShape(28.dp) // ปุ่มโค้งมนแบบแคปซูล
+                    shape = RoundedCornerShape(28.dp)
                 ) {
                     Text(
                         text = "Login",
@@ -131,7 +150,7 @@ fun WelcomeScreen() {
 
                 // ปุ่ม Register
                 Button(
-                    onClick = { /* TODO: ใส่ Action เมื่อกด Register */ },
+                    onClick = { onRegisterClick() },
                     modifier = Modifier
                         .fillMaxWidth(0.85f)
                         .height(56.dp),
