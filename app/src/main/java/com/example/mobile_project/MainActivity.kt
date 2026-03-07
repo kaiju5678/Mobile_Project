@@ -7,8 +7,12 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -19,43 +23,66 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import com.example.mobile_project.login.LoginScreen
 import com.example.mobile_project.register.RegisterScreen
+import com.example.mobile_project.vehicle.VehicleTestScreen
 
-// --- 1. สร้าง Enum สำหรับหน้าจอ ---
-enum class Screen {
-    Welcome, Login, Register
-}
-
-// --- 2. สร้าง ViewModel สำหรับจัดการ Navigation ---
-class NavigationViewModel : ViewModel() {
-    var currentScreen by mutableStateOf(Screen.Welcome)
-        private set
-
-    fun navigateTo(screen: Screen) {
-        currentScreen = screen
-    }
-}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            // เรียกใช้งาน ViewModel
-            val navigationViewModel: NavigationViewModel = viewModel()
+            // สร้าง NavController
+            val navController = rememberNavController()
 
-            // ตรวจสอบ State จาก ViewModel เพื่อแสดงหน้าจอ
-            when (navigationViewModel.currentScreen) {
-                Screen.Welcome -> WelcomeScreen(
-                    onLoginClick = { navigationViewModel.navigateTo(Screen.Login) },
-                    onRegisterClick = { navigationViewModel.navigateTo(Screen.Register) }
-                )
-                Screen.Login -> LoginScreen(
-                    onNavigateToRegister = { navigationViewModel.navigateTo(Screen.Register) }
-                )
-                Screen.Register -> RegisterScreen(
-                    onNavigateToLogin = { navigationViewModel.navigateTo(Screen.Login) }
-                )
+            // ดึงข้อมูล Route ปัจจุบัน (เผื่ออนาคตคุณนำไปใช้กับ BottomNavigationBar)
+            val navBackStackEntry by navController.currentBackStackEntryAsState()
+            val currentRoute = navBackStackEntry?.destination?.route
+
+            Scaffold { innerPadding ->
+                NavHost(
+                    navController = navController,
+                    startDestination = "vehicle_test", // กำหนดหน้าแรก
+                    modifier = Modifier.padding(innerPadding)
+                ) {
+                    // 1. หน้า Welcome
+                    composable("welcome") {
+                        WelcomeScreen(
+                            onLoginClick = { navController.navigate("login") },
+                            onRegisterClick = { navController.navigate("register") }
+                        )
+                    }
+
+                    // 2. หน้า Login
+                    composable("login") {
+                        LoginScreen(
+                            onNavigateToRegister = {
+                                // ไปหน้า Register และจัดการไม่ให้เกิด Stack ซ้อนกันเยอะเกินไป
+                                navController.navigate("register") {
+                                    popUpTo("welcome")
+                                }
+                            }
+                        )
+                    }
+
+                    // 3. หน้า Register
+                    composable("register") {
+                        RegisterScreen(
+                            onNavigateToLogin = {
+                                navController.navigate("login") {
+                                    popUpTo("welcome")
+                                }
+                            }
+                        )
+                    }
+                    composable("vehicle_test") {
+                        VehicleTestScreen()
+                    }
+                }
             }
         }
     }
@@ -74,7 +101,7 @@ fun WelcomeScreen(onLoginClick: () -> Unit, onRegisterClick: () -> Unit) {
             .background(TopBackgroundColor),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // --- ส่วนบน (โลโก้ และ ข้อความ) ใช้แบบเดิมตามที่คุณต้องการ ---
+        // --- ส่วนบน (โลโก้ และ ข้อความ) ---
         Spacer(modifier = Modifier.height(80.dp))
 
         Image(
@@ -96,7 +123,6 @@ fun WelcomeScreen(onLoginClick: () -> Unit, onRegisterClick: () -> Unit) {
             lineHeight = 38.sp
         )
 
-        // Spacer ตัวนี้จะทำหน้าที่ดันกรอบสีฟ้าให้ลงไปอยู่ด้านล่างสุด
         Spacer(modifier = Modifier.weight(1f))
 
         // --- ส่วนล่าง (กล่องสีฟ้าและปุ่มกด) ---
@@ -108,8 +134,6 @@ fun WelcomeScreen(onLoginClick: () -> Unit, onRegisterClick: () -> Unit) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    // ปรับให้กรอบสีฟ้าสูงขึ้น เหมาะกับจอ Pixel 9a
-                    // เพิ่ม top เป็น 72.dp และ bottom เป็น 110.dp (เดิม 56.dp)
                     .padding(top = 72.dp, bottom = 110.dp, start = 32.dp, end = 32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -132,7 +156,7 @@ fun WelcomeScreen(onLoginClick: () -> Unit, onRegisterClick: () -> Unit) {
 
                 Spacer(modifier = Modifier.height(48.dp))
 
-                // ปุ่ม Login - ปรับเป็น fillMaxWidth() ให้อยู่ในกรอบ padding จะได้สมมาตร
+                // ปุ่ม Login
                 Button(
                     onClick = { onLoginClick() },
                     modifier = Modifier
