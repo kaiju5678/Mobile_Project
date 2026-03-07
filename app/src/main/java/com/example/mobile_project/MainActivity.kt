@@ -29,6 +29,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.mobile_project.login.LoginScreen
 import com.example.mobile_project.register.RegisterScreen
+import com.example.mobile_project.vehicle.CustomBottomNavBar
+import com.example.mobile_project.vehicle.CustomTopAppBar
+import com.example.mobile_project.vehicle.HomeScreen
 import com.example.mobile_project.vehicle.VehicleTestScreen
 
 
@@ -36,51 +39,64 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            // สร้าง NavController
             val navController = rememberNavController()
-
-            // ดึงข้อมูล Route ปัจจุบัน (เผื่ออนาคตคุณนำไปใช้กับ BottomNavigationBar)
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentRoute = navBackStackEntry?.destination?.route
 
-            Scaffold { innerPadding ->
+            // กำหนดรายชื่อหน้าจอที่ "ต้องการให้แสดง" TopBar และ BottomBar
+            val screensWithBars = listOf("home")
+
+            // ตัวแปรเช็คว่าควรโชว์บาร์ไหม (ถ้า currentRoute อยู่ในลิสต์ด้านบน จะเป็น true)
+            val showBars = currentRoute in screensWithBars
+
+            // โครงสร้างหลักของแอป
+            Scaffold(
+                topBar = {
+                    // โชว์ TopBar เฉพาะหน้าที่กำหนด
+                    if (showBars) {
+                        CustomTopAppBar(
+                            onBackClick = { navController.popBackStack() } // <--- เพิ่มบรรทัดนี้เข้าไป
+                        )
+                    }
+                },
+                bottomBar = {
+                    // โชว์ BottomBar เฉพาะหน้าที่กำหนด
+                    if (showBars) {
+                        CustomBottomNavBar(navController, currentRoute)
+                    }
+                },
+                containerColor = Color(0xFFF6F8FA) // ใส่สีพื้นหลังหลักของแอปที่นี่
+            ) { innerPadding ->
+
                 NavHost(
                     navController = navController,
-                    startDestination = "vehicle_test", // กำหนดหน้าแรก
-                    modifier = Modifier.padding(innerPadding)
+                    startDestination = "welcome", // เริ่มที่หน้า Welcome
+                    modifier = Modifier.padding(innerPadding) // <--- สำคัญมาก! ตัวนี้จะจัดการไม่ให้เนื้อหาโดนบาร์ทับ
                 ) {
-                    // 1. หน้า Welcome
                     composable("welcome") {
                         WelcomeScreen(
                             onLoginClick = { navController.navigate("login") },
                             onRegisterClick = { navController.navigate("register") }
                         )
                     }
-
-                    // 2. หน้า Login
                     composable("login") {
                         LoginScreen(
                             onNavigateToRegister = {
-                                // ไปหน้า Register และจัดการไม่ให้เกิด Stack ซ้อนกันเยอะเกินไป
-                                navController.navigate("register") {
-                                    popUpTo("welcome")
-                                }
+                                navController.navigate("register") { popUpTo("welcome") }
+                            }
+                        )
+                    }
+                    composable("register") {
+                        RegisterScreen(
+                            onNavigateToLogin = {
+                                navController.navigate("login") { popUpTo("welcome") }
                             }
                         )
                     }
 
-                    // 3. หน้า Register
-                    composable("register") {
-                        RegisterScreen(
-                            onNavigateToLogin = {
-                                navController.navigate("login") {
-                                    popUpTo("welcome")
-                                }
-                            }
-                        )
-                    }
-                    composable("vehicle_test") {
-                        VehicleTestScreen()
+                    // หน้า Home ของเรา
+                    composable("home") {
+                        HomeScreen()
                     }
                 }
             }
