@@ -3,24 +3,20 @@ package com.example.mobile_project.firebaseDB
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.Firebase
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.firestore
-import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-
-// ✅ 1. เพิ่ม Object นี้ไว้ด้านบนสุด เพื่อจดจำอีเมลของคนที่ใช้งานอยู่ตอนนี้
+// เก็บ email ของ user ที่ login อยู่
 object UserSession {
     var currentUserEmail: String = ""
 }
 
-// 1. สร้าง Data Class ตาม Diagram ของคุณ
+// Data Class — ไม่เก็บ password แล้ว (Firebase Auth จัดการให้)
 data class User(
     val id: String = "",
     val email: String = "",
-    val password: String = "", // ดูคำแนะนำด้านล่างเกี่ยวกับ Password
     val firstName: String = "",
     val lastName: String = "",
     val phone: String = "",
@@ -29,117 +25,185 @@ data class User(
     val role: String = "user"
 )
 
-// 2. สร้าง DataSource สำหรับจัดการ Firestore
+// DataSource
 class FirestoreUserDataSource {
-    // ชื่อ Collection ที่จะถูกสร้างอัตโนมัติคือ "users"
     private val collection = Firebase.firestore.collection("users")
 
-    suspend fun insert(user: User) {
-        // ใช้ email หรือสร้าง ID ใหม่เป็น Document ID ก็ได้
-        // ในที่นี้ถ้าไม่ได้กำหนด ID มา จะใช้ .add() เพื่อ random ID ให้อัตโนมัติ
-        collection.add(user).await()
+    suspend fun insertWithId(user: User, uid: String) {
+        // ใช้ Firebase Auth UID เป็น Document ID เพื่อ link กัน
+        collection.document(uid).set(user).await()
     }
-
-    // (สามารถเพิ่มฟังก์ชัน update, delete, getAll แบบเดียวกับ Order ได้ในอนาคต)
 }
 
-// 3. สร้าง Repository
+// Repository
 class UserRepository(
     private val dataSource: FirestoreUserDataSource = FirestoreUserDataSource()
 ) {
-    suspend fun insert(user: User) {
-        dataSource.insert(user)
+    suspend fun insertWithId(user: User, uid: String) {
+        dataSource.insertWithId(user, uid)
     }
 }
 
-// 4. สร้าง ViewModel ไว้เชื่อมกับหน้า UI
+// ViewModel
 class UserViewModel(
     private val repository: UserRepository = UserRepository()
 ) : ViewModel() {
 
-    // ฟังก์ชันนี้จะถูกเรียกจากปุ่ม Register
+    private val auth = FirebaseAuth.getInstance()
+    private val db = Firebase.firestore
+
+    // ── Register ──
+    // สร้าง account ใน Firebase Auth ก่อน แล้วค่อย save profile ลง Firestore
     fun registerUser(
         email: String,
         password: String,
         firstName: String,
         lastName: String,
-        phone: String
+        phone: String,
+        onResult: (Boolean, String) -> Unit
     ) {
-        viewModelScope.launch {
-            val newUser = User(
-                email = email,
-                password = password,
-                firstName = firstName,
-                lastName = lastName,
-                phone = phone
-            )
-            repository.insert(newUser)
+        auth.createUserWithEmailAndPassword(email, password)
+            .addOnSuccessListener { authResult ->
+                val uid = authResult.user?.uid ?: run {
+                    onResult(false, "Failed to get user ID.")
+                    return@addOnSuccessListener
+                }
+                val newUser = User(
+                    id = uid,
+                    email = email,
+                    firstName = firstName,
+                    lastName = lastName,
+                    phone = phone
+                )
+                viewModelScope.launch {
+                    try {
+                        repository.insertWithId(newUser, uid)
+                        onResult(true, "")
+                    } catch (e: Exception) {
+                        onResult(false, e.message ?: "Failed to save profile.")
+                    }
+                }
+            }
+            .addOnFailureListener { e ->
+                val msg = when {
+                    e.message?.contains("email address is already in use") == true ->
+                        "This email is already registered."
+                    e.message?.contains("badly formatted") == true ->
+                        "Invalid email format."
+                    e.message?.contains("at least 6") == true ->
+                        "Password must be at least 6 characters."
+                    else -> e.message ?: "Registration failed."
+                }
+                onResult(false, msg)
+            }
+    }
+
+    // ── Login ──
+    // ใช้ Firebase Auth แทน Firestore query — รองรับ Forgot Password
+    fun loginUser(
+        email: String,
+        password: String,
+        onResult: (Boolean, String) -> Unit
+    ) {
+        auth.signInWithEmailAndPassword(email, password)
+            .addOnSuccessListener {
+                UserSession.currentUserEmail = email
+                onResult(true, "")
+            }
+            .addOnFailureListener { e ->
+                val msg = when {
+                    e.message?.contains("no user record") == true ||
+                            e.message?.contains("identifier") == true ->
+                        "No account found with this email."
+                    e.message?.contains("password is invalid") == true ||
+                            e.message?.contains("incorrect") == true ->
+                        "Incorrect password."
+                    e.message?.contains("too many") == true ||
+                            e.message?.contains("blocked") == true ->
+                        "Too many failed attempts. Try again later."
+                    else -> "Invalid email or password."
+                }
+                onResult(false, msg)
+            }
+    }
+
+    // ── Forgot Password ──
+    // Firebase Auth ส่ง reset email ให้อัตโนมัติ ไม่ต้องเขียน logic เอง
+    fun sendPasswordReset(
+        email: String,
+        onResult: (Boolean, String) -> Unit
+    ) {
+        auth.sendPasswordResetEmail(email)
+            .addOnSuccessListener {
+                onResult(true, "")
+            }
+            .addOnFailureListener { e ->
+                val msg = when {
+                    e.message?.contains("no user record") == true ||
+                            e.message?.contains("identifier") == true ->
+                        "No account found with this email."
+                    e.message?.contains("badly formatted") == true ->
+                        "Invalid email format."
+                    else -> e.message ?: "Failed to send reset email."
+                }
+                onResult(false, msg)
+            }
+    }
+
+    // ── Fetch Profile ──
+    fun fetchUserData(email: String, onResult: (User?) -> Unit) {
+        val uid = auth.currentUser?.uid
+        if (uid != null) {
+            // ใช้ UID โดยตรง — เร็วกว่า query
+            db.collection("users").document(uid).get()
+                .addOnSuccessListener { doc -> onResult(doc.toObject(User::class.java)) }
+                .addOnFailureListener { onResult(null) }
+        } else {
+            // fallback สำหรับ Google login
+            db.collection("users").whereEqualTo("email", email).get()
+                .addOnSuccessListener { docs ->
+                    onResult(if (!docs.isEmpty) docs.documents[0].toObject(User::class.java) else null)
+                }
+                .addOnFailureListener { onResult(null) }
         }
     }
 
-    //ฟังก์ชันใหม่สำหรับตรวจสอบ Login
-    fun loginUser(email: String, password: String, onResult: (Boolean) -> Unit) {
-        val db = Firebase.firestore
-        db.collection("users")
-            .whereEqualTo("email", email)
-            .whereEqualTo("password", password)
-            .get()
-            .addOnSuccessListener { documents ->
-                if (documents.isEmpty) {
-                    onResult(false)
-                } else {
-                    // ✅ 2. เมื่อล็อกอินสำเร็จ ให้จำอีเมลนี้เก็บไว้ใน Session
-                    UserSession.currentUserEmail = email
-                    onResult(true)
-                }
-            }
-            .addOnFailureListener { onResult(false) }
-    }
-
-    fun fetchUserData(email: String, onResult: (User?) -> Unit) {
-        val db = Firebase.firestore
-        db.collection("users").whereEqualTo("email", email).get()
-            .addOnSuccessListener { documents ->
-                if (!documents.isEmpty) {
-                    // ดึงเอกสารแรกที่เจอมาแปลงเป็น Data Class User
-                    val user = documents.documents[0].toObject(User::class.java)
-                    onResult(user)
-                } else {
-                    onResult(null)
-                }
-            }
-            .addOnFailureListener { onResult(null) }
-    }
-
-    // 2. ฟังก์ชันสำหรับบันทึกข้อมูลที่แก้ไขกลับลงไปใน Firestore
+    // ── Update Profile ──
     fun updateUserData(
-        oldEmail: String, // รับอีเมลเดิมมาเพื่อใช้ค้นหา
-        newEmail: String, // รับอีเมลใหม่ที่ผู้ใช้พิมพ์แก้
+        oldEmail: String,
+        newEmail: String,
         newFirstName: String,
         newLastName: String,
         newPhone: String,
         onResult: (Boolean) -> Unit
     ) {
-        val db = Firebase.firestore
-        db.collection("users").whereEqualTo("email", oldEmail).get()
-            .addOnSuccessListener { documents ->
-                if (!documents.isEmpty) {
-                    val docId = documents.documents[0].id
-                    db.collection("users").document(docId)
-                        .update(
-                            mapOf(
-                                "email" to newEmail, // ✅ อัปเดตอีเมลใหม่ลง Firestore
-                                "firstName" to newFirstName,
-                                "lastName" to newLastName,
-                                "phone" to newPhone
-                            )
-                        )
-                        .addOnSuccessListener { onResult(true) }
-                        .addOnFailureListener { onResult(false) }
-                } else {
-                    onResult(false) // หาอีเมลเดิมไม่เจอ
+        val uid = auth.currentUser?.uid
+        val updateMap = mapOf(
+            "email" to newEmail,
+            "firstName" to newFirstName,
+            "lastName" to newLastName,
+            "phone" to newPhone
+        )
+
+        if (uid != null) {
+            db.collection("users").document(uid)
+                .update(updateMap)
+                .addOnSuccessListener { onResult(true) }
+                .addOnFailureListener { onResult(false) }
+        } else {
+            // fallback สำหรับ Google login
+            db.collection("users").whereEqualTo("email", oldEmail).get()
+                .addOnSuccessListener { docs ->
+                    if (!docs.isEmpty) {
+                        db.collection("users").document(docs.documents[0].id)
+                            .update(updateMap)
+                            .addOnSuccessListener { onResult(true) }
+                            .addOnFailureListener { onResult(false) }
+                    } else {
+                        onResult(false)
+                    }
                 }
-            }
-            .addOnFailureListener { onResult(false) }
+                .addOnFailureListener { onResult(false) }
+        }
     }
 }

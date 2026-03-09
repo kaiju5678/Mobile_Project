@@ -1,5 +1,10 @@
 package com.example.mobile_project.register
 
+import android.widget.Toast
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -36,8 +42,9 @@ fun RegisterScreen(
     var phone by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    // ✅ เพิ่มตัวแปรนี้เข้าไป
     var passwordVisible by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -54,7 +61,7 @@ fun RegisterScreen(
         )
 
         Text(
-            text = "Create Your Account",
+            text = "Create your Account",
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
             color = Color(0xFF00337C),
@@ -138,24 +145,49 @@ fun RegisterScreen(
                 // ✅ 5. สั่งบันทึกข้อมูลเมื่อกดปุ่ม Register
                 Button(
                     onClick = {
-                        // เรียกใช้ฟังก์ชันจาก ViewModel เพื่อบันทึกลง Firestore
+                        if (firstName.isBlank() || lastName.isBlank() || email.isBlank() || password.isBlank()) {
+                            Toast.makeText(context, "Please fill in all fields.", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        isLoading = true
                         userViewModel.registerUser(
                             email = email,
                             password = password,
                             firstName = firstName,
                             lastName = lastName,
                             phone = phone
-                        )
-                        // เมื่อสมัครเสร็จ สั่งให้เด้งกลับไปหน้า Login
-                        onNavigateToLogin()
+                        ) { isSuccess, errorMsg ->
+                            isLoading = false
+                            if (isSuccess) {
+                                Toast.makeText(context, "Account created! Please login.", Toast.LENGTH_SHORT).show()
+                                onNavigateToLogin()
+                            } else {
+                                Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
+                            }
+                        }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00337C)),
-                    shape = RoundedCornerShape(30.dp)
+                    shape = RoundedCornerShape(30.dp),
+                    enabled = !isLoading
                 ) {
-                    Text("Register", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    AnimatedContent(
+                        targetState = isLoading,
+                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                        label = "registerBtn"
+                    ) { loading ->
+                        if (loading) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                modifier = Modifier.size(22.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text("Register", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
