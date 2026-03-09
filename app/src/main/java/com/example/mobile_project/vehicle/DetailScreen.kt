@@ -230,7 +230,7 @@ fun DetailScreen(vehicleId: String, onBackClick: () -> Unit) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.AccessTime, null, tint = Color(0xFFE65100), modifier = Modifier.size(14.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Statusเริ่มต้น: รอการPay Now", fontSize = 12.sp, color = Color(0xFFE65100))
+                                Text("Status: Awaiting Pay Now", fontSize = 12.sp, color = Color(0xFFE65100))
                             }
                         }
                     },

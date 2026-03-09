@@ -190,7 +190,7 @@ fun WelcomeScreen(onLoginClick: () -> Unit, onRegisterClick: () -> Unit) {
                 painter = painterResource(id = R.drawable.hitcar_template),
                 contentDescription = "HitCar Logo",
                 modifier = Modifier
-                    .fillMaxWidth(0.62f)
+                    .fillMaxWidth(0.80f) // ขยายความกว้างจาก 0.62f เป็น 0.80f
                     .padding(horizontal = 16.dp)
                     .alpha(logoAlpha)
                     .scale(logoScale)

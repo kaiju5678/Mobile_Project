@@ -112,7 +112,7 @@ fun LoginScreen(
         Icon(
             painter = painterResource(id = R.drawable.hitcar_template),
             contentDescription = "HitCar Logo",
-            modifier = Modifier.size(100.dp),
+            modifier = Modifier.size(140.dp), // ขยายจาก 100.dp เป็น 140.dp
             tint = Color(0xFF00337C)
         )
         Text(

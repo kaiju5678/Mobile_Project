@@ -113,7 +113,7 @@ fun CustomTopAppBar(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp)
+                .height(72.dp) // 1. ขยายความสูงของ TopBar เพื่อให้มีพื้นที่ใส่รูปใหญ่ๆ
                 .padding(horizontal = 16.dp)
         ) {
             if (showBackButton) {
@@ -137,8 +137,11 @@ fun CustomTopAppBar(
             Image(
                 painter = painterResource(id = R.drawable.hitcar_template),
                 contentDescription = "HitCar Logo",
-                modifier = Modifier.height(28.dp).align(Alignment.Center),
-                contentScale = ContentScale.Fit
+                modifier = Modifier
+                    .width(160.dp)  // 2. บังคับความกว้างให้ใหญ่ชัดเจน (ปรับเพิ่มได้เช่น 180.dp หรือ 200.dp)
+                    .height(54.dp)  // 3. ปรับความสูงให้เกือบเต็ม TopBar
+                    .align(Alignment.Center),
+                contentScale = ContentScale.Fit // 4. ใช้ Fit เพื่อคงอัตราส่วนรูปไว้ ไม่ให้รูปเบี้ยว
             )
 
             Box(modifier = Modifier.align(Alignment.CenterEnd)) {

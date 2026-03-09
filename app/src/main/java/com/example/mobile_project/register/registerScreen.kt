@@ -54,10 +54,11 @@ fun RegisterScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // --- ส่วนของโลโก้ ---
+        // --- ส่วนของโลโก้ ---
         Image(
             painter = painterResource(id = R.drawable.hitcar_template),
             contentDescription = "Hitcar Logo",
-            modifier = Modifier.size(140.dp)
+            modifier = Modifier.size(180.dp) // ขยายจาก 140.dp เป็น 180.dp
         )
 
         Text(
