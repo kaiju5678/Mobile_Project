@@ -19,8 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.google.firebase.auth.FirebaseAuth
-import com.example.mobile_project.firebaseDB.UserViewModel // เช็ค import ด้วยนะครับ
+import com.example.mobile_project.firebaseDB.UserViewModel
 import com.example.mobile_project.firebaseDB.UserSession
 
 @Composable
@@ -36,6 +35,9 @@ fun ProfileScreen(userViewModel: UserViewModel = viewModel()) {
     var lastName by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(true) }
+
+    // State สำหรับควบคุมการแสดง Popup ยืนยันการบันทึก
+    var showConfirmDialog by remember { mutableStateOf(false) }
 
     // ดึงข้อมูลจาก Firebase อัตโนมัติเมื่อเปิดหน้านี้
     LaunchedEffect(loggedInEmail) {
@@ -54,50 +56,105 @@ fun ProfileScreen(userViewModel: UserViewModel = viewModel()) {
         }
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize().background(Color(0xFFF6F8FA))
-    ) {
-        // --- ส่วนหัว (Profile Icon) ---
-        Box(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Surface(shape = CircleShape, color = Color(0xFFE1F1FA), modifier = Modifier.size(120.dp)) {
-                Icon(imageVector = Icons.Default.Person, contentDescription = "Profile", tint = Color(0xFF00337C), modifier = Modifier.padding(24.dp))
+    Box(modifier = Modifier.fillMaxSize().background(Color(0xFFF6F8FA))) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // --- ส่วนหัว (Profile Icon) ---
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Surface(shape = CircleShape, color = Color(0xFFE1F1FA), modifier = Modifier.size(120.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = "Profile",
+                        tint = Color(0xFF00337C),
+                        modifier = Modifier.padding(24.dp)
+                    )
+                }
+            }
+
+            // --- ส่วนฟอร์มแก้ไขข้อมูล ---
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .background(color = Color.White, shape = RoundedCornerShape(topStart = 40.dp, topEnd = 40.dp))
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 32.dp)
+                            .verticalScroll(rememberScrollState()),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Spacer(modifier = Modifier.height(40.dp))
+
+                        Text(
+                            text = "Edit Profile",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF00337C),
+                            modifier = Modifier.padding(bottom = 24.dp)
+                        )
+
+                        // ✅ ปลดล็อคให้แก้ Email ได้แล้ว!
+                        EditTextField(label = "Email", value = email, onValueChange = { email = it })
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        EditTextField(label = "First Name", value = firstName, onValueChange = { firstName = it })
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        EditTextField(label = "Last Name", value = lastName, onValueChange = { lastName = it })
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        EditTextField(label = "Phone Number", value = phone, onValueChange = { phone = it })
+                        Spacer(modifier = Modifier.height(40.dp))
+
+                        // ปุ่มกดเพื่อเปิด Popup ยืนยัน
+                        Button(
+                            onClick = {
+                                // เปิด Dialog เมื่อกด Save Changes
+                                showConfirmDialog = true
+                            },
+                            modifier = Modifier.fillMaxWidth().height(56.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00337C)),
+                            shape = RoundedCornerShape(30.dp)
+                        ) {
+                            Text("Save Changes", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(modifier = Modifier.height(40.dp))
+                    }
+                }
             }
         }
 
-        // --- ส่วนฟอร์มแก้ไขข้อมูล ---
-        Box(
-            modifier = Modifier.fillMaxWidth().weight(1f).background(color = Color.White, shape = RoundedCornerShape(topStart = 40.dp, topEnd = 40.dp))
-        ) {
-            if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            } else {
-                Column(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 32.dp).verticalScroll(rememberScrollState()),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Spacer(modifier = Modifier.height(40.dp))
-
-                    Text(text = "Edit Profile", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF00337C), modifier = Modifier.padding(bottom = 24.dp))
-
-                    // ✅ ปลดล็อคให้แก้ Email ได้แล้ว!
-                    EditTextField(label = "Email", value = email, onValueChange = { email = it })
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    EditTextField(label = "First Name", value = firstName, onValueChange = { firstName = it })
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    EditTextField(label = "Last Name", value = lastName, onValueChange = { lastName = it })
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    EditTextField(label = "Phone Number", value = phone, onValueChange = { phone = it })
-                    Spacer(modifier = Modifier.height(40.dp))
-
-                    // ปุ่มกดบันทึก
+        // --- Popup Confirm การบันทึกข้อมูล ---
+        if (showConfirmDialog) {
+            AlertDialog(
+                onDismissRequest = { showConfirmDialog = false },
+                containerColor = Color.White,
+                shape = RoundedCornerShape(20.dp),
+                title = {
+                    Text(
+                        text = "Confirm Changes",
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF00337C)
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Are you sure you want to update your profile information?",
+                        color = Color.DarkGray
+                    )
+                },
+                confirmButton = {
                     Button(
                         onClick = {
+                            showConfirmDialog = false
+                            // อัปเดตข้อมูลเมื่อกดยืนยัน
                             userViewModel.updateUserData(
                                 oldEmail = loggedInEmail, // ใช้อีเมลเดิมค้นหา
                                 newEmail = email,         // อีเมลใหม่ที่พิมพ์ลงไป
@@ -113,15 +170,18 @@ fun ProfileScreen(userViewModel: UserViewModel = viewModel()) {
                                 }
                             }
                         },
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00337C)),
-                        shape = RoundedCornerShape(30.dp)
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Save Changes", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("Confirm", fontWeight = FontWeight.Bold)
                     }
-                    Spacer(modifier = Modifier.height(40.dp))
+                },
+                dismissButton = {
+                    TextButton(onClick = { showConfirmDialog = false }) {
+                        Text("Cancel", color = Color.Gray)
+                    }
                 }
-            }
+            )
         }
     }
 }

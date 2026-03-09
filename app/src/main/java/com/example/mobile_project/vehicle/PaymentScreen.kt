@@ -201,7 +201,7 @@ fun PaymentScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Lock, null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("ConfirmการPay Now", fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                            Text("Confirm Pay Now", fontSize = 17.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -219,7 +219,7 @@ fun PaymentScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Payment, null, tint = Color(0xFF2E7D32), modifier = Modifier.size(22.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("ConfirmการPay Now", fontWeight = FontWeight.Bold, color = AppDarkBlue, fontSize = 17.sp)
+                    Text("Confirm Pay Now", fontWeight = FontWeight.Bold, color = AppDarkBlue, fontSize = 17.sp)
                 }
             },
             text = {
@@ -259,7 +259,7 @@ fun PaymentScreen(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
                     shape = RoundedCornerShape(12.dp)
-                ) { Text("ConfirmPay Now", fontWeight = FontWeight.Bold) }
+                ) { Text("Confirm Pay Now", fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
                 TextButton(onClick = { showConfirmDialog = false }) { Text("Cancel", color = Color.Gray) }
